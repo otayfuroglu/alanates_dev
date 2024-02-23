@@ -1,0 +1,92 @@
+from pymatgen.core import Structure
+from pymatgen.analysis.local_env import  (BrunnerNN_reciprocal,
+                                          BrunnerNN_real,
+                                          CrystalNN,
+                                          MinimumDistanceNN)
+
+from ase.io import read, write
+import numpy as np
+import tqdm
+
+
+def f_cut(d_kl, Tx, Vx):
+    #  print(d_kl, Tx, Vx)
+
+    K = (d_kl - Tx) / (Vx - Tx)
+    f = np.array((2 * K + 1) * ((K - 1) ** 2))
+    f[d_kl<Tx] = 1
+    f[Vx<d_kl] = 0
+    #  print(f)
+    return f
+
+
+def get_1NN2NN_distances(nn, struc, center_atom_i):
+    nn_distances = []
+    site_idexes = []
+    for shel_i in [1, 2]:
+        distances = []
+        for site in nn.get_nn_shell_info(struc, center_atom_i, shel_i):
+            #  print(site)
+            site_i = site["site_index"]
+            if not site_i in site_idexes:
+                site_idexes.append(site_i)
+                distances += [struc.get_distance(center_atom_i, site_i)]
+        #  if len(distances) == 0:
+            #  distances.append(0)
+        try:
+            nn_distances.append(min(distances))
+        except:
+            return 0, 0.0
+    return site_idexes, nn_distances
+
+
+def get_coord_num(nn, atoms, center_atom_i, replica):
+
+    fl_name = "tmp"
+    write(f"{fl_name}.cif", atoms)
+    struc = Structure.from_file(f"{fl_name}.cif") #read in CIF as Pymatgen Structure
+    if replica > 1:
+        struc.make_supercell([replica, replica, replica])
+
+    coord_num = 0
+    site_idexes, nn_distances = get_1NN2NN_distances(nn, struc, center_atom_i)
+    if nn_distances == 0.0:
+        return None
+
+    passed_site_idexes = []# to get under control duplication and self correlation
+    for shel_i in [1, 2]:
+        for site_i in site_idexes:
+            #  print(site_i)
+            if not site_i in passed_site_idexes: # to get under control duplication and self correlation
+                passed_site_idexes.append(site_i)
+                distance = struc.get_distance(center_atom_i, site_i)
+                coord_num += f_cut(d_kl=distance, Tx=nn_distances[0], Vx=nn_distances[1])
+    return coord_num
+
+
+
+def checkH2Bond(atoms):
+    H_index = [atom.index for atom in atoms if atom.symbol == "H"]
+    HH_bonds = [atoms.get_distance(i, j) for i in H_index for j in  H_index]
+    HH_bonds = list(filter(lambda x: x != 0, HH_bonds))
+    return min(HH_bonds)
+
+
+nn = CrystalNN(search_cutoff=12)
+for atoms in tqdm.tqdm(read("vasp_freq.extxyz", index=":")):
+    # to remove unphysical structures
+    if checkH2Bond(atoms) < 0.9:
+        continue
+
+    Al_index = [atom.index for atom in atoms if atom.symbol == "Al"]
+    center_atom_i = Al_index[3]
+    coord_num = get_coord_num(nn, atoms, center_atom_i, replica=1)
+
+    print(coord_num)
+    if coord_num.is_integer():
+        coord_num = get_coord_num(nn, atoms, center_atom_i, replica=2)
+    if coord_num <=  4.7:
+        write("isolated.extxyz", atoms, append=True)
+    elif 4.7 < coord_num:
+        write("polymeric.extxyz", atoms, append=True)
+    #  break

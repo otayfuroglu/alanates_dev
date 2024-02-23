@@ -1,0 +1,45 @@
+#
+from ase import Atoms
+from ase.io import read
+from ase.neighborlist import NeighborList
+import matplotlib.patches as mpatches
+
+import numpy as np
+from matplotlib import pyplot as plt
+
+
+energies = []
+
+i = 0
+for atoms in read("../opt_alanates_mh/unique_isolated.extxyz", index=":"):
+
+    energy = atoms.get_potential_energy()
+    if energy in energies:
+        print("Equal Energy")
+        continue
+    plt.axhline (y=energy , xmin=0.01, xmax=0.3, linestyle="-", color="b", alpha=1, linewidth=0.5)
+    #  plt.text(energy, 0.4, f"Frame_{i}", fontsize=12)
+    energies += [energy]
+    i += 1
+
+len_mh_atoms = len(energies)
+
+energies_v2 = []
+for atoms in read("./unique_structures.extxyz", index=":"):
+
+    energy = atoms.get_potential_energy()
+    if energy in energies_v2:
+        print("Equal Energy")
+        continue
+    plt.axhline (y=energy , xmin=0.4, xmax=0.7, linestyle="-", color="r", alpha=1, linewidth=0.5)
+    #  plt.text(energy, 0.4, f"Frame_{i}", fontsize=12)
+    energies += [energy]
+    energies_v2 += [energy]
+
+struc_type_legends = [mpatches.Patch(color="b", label=f"From Minima Hopping (# {len_mh_atoms})"),
+                      mpatches.Patch(color="r", label=f"From Rotated (# {len(energies_v2)})"), ]
+plt.ylim([min(energies)-0.05, max(energies)+0.05])
+#  plt.ylim([-48.01, -47.9])
+plt.legend(handles=struc_type_legends)
+#  plt.show()
+plt.savefig("energyOrder.png")
