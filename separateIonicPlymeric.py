@@ -90,4 +90,3 @@ for i, atoms in enumerate(tqdm(atoms_list)):
     elif av_coordnum <=  4.7:
         write(f"like_isolated_{fl_out}", atoms, append=True)
         write(f"isolated_all_{fl_out}", atoms, append=True)
-    #  break
