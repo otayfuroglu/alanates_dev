@@ -1,5 +1,5 @@
 import sys
-sys.path.append('/Users/omert/Desktop/alanates/omfp-transformer/src')
+sys.path.append('/arf/home/otayfuroglu/alanates_dev/measureSimilarty/src/')
 import argparse
 import re
 
@@ -158,28 +158,47 @@ atoms_list = read(extxyz_path, index=":")
 n_atoms_list = len(atoms_list)
 
 results = []
-#  with Pool(2) as pool:
-#      for result in tqdm.tqdm(pool.imap_unordered(func=comp_all, iterable=range(n_atoms_list)), total=n_atoms_list):
-#          results.append(result)
+with Pool(112) as pool:
+    for result in tqdm.tqdm(pool.imap_unordered(func=comp_all, iterable=range(n_atoms_list)), total=n_atoms_list):
+        results.append(result)
+
+results = sorted(results, key=lambda x: x[0])
+
+# triangle matrix to squared
 matrix = np.zeros((n_atoms_list, n_atoms_list))
-for i in tqdm.tqdm(range(n_atoms_list)):
-        atoms = atoms_list[i]
-        s = atoms2structure(atoms)
-        ds = []
-        for (f, r) in refs:
+for i, ds in results:
+        for (f, d) in enumerate(ds):
             if f >= i:
                 continue
-            d = comp(r, s)
-            ds.append((d, f))
             matrix[i, f] = d
             matrix[f, i] = d
-    #  result = comp_all(i)
-    #  results.append(result)
-#  results = sorted(results, key=lambda x: x[0])
 matrix = matrix + matrix.T - np.diag(matrix.diagonal())
+
+
+
+
+#  matrix = np.zeros((n_atoms_list, n_atoms_list))
+#  for i in tqdm.tqdm(range(n_atoms_list)):
+#
+#          atoms = atoms_list[i]
+#          s = atoms2structure(atoms)
+#          ds = []
+#          for (f, r) in refs:
+#              if f >= i:
+#                  continue
+#              d = comp(r, s)
+#              ds.append((d, f))
+#              matrix[i, f] = d
+#              matrix[f, i] = d
+#      #  result = comp_all(i)
+#      #  results.append(result)
+#  #  results = sorted(results, key=lambda x: x[0])
+#  matrix = matrix + matrix.T - np.diag(matrix.diagonal())
+
 
 #  matrix = np.array([fl_ddd[1] for fl_ddd in results])
 #  print(matrix)
+
 np.save("all_matrix", matrix)
 
 fig_name = os.path.basename(args.extxyz_path).split('.')[0] + '_pairwise_dist.png'
