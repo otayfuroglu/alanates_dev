@@ -138,6 +138,7 @@ def expand_structure(s):
 parser = argparse.ArgumentParser(description="Give something ...")
 parser.add_argument("-extxyz_path", type=str, required=True, help="..")
 parser.add_argument("-refs_path", type=str, required=True, help="..")
+parser.add_argument("-nproc", type=int, required=True, help="..")
 args = parser.parse_args()
 refs_path = args.refs_path
 extxyz_path = args.extxyz_path
@@ -162,7 +163,7 @@ iterable = list(range(n_atoms_list))
 random.shuffle(iterable)
 
 results = []
-with Pool(112) as pool:
+with Pool(args.nproc) as pool:
     i = 0
     for result in tqdm.tqdm(pool.imap_unordered(func=comp_all, iterable=iterable), total=n_atoms_list):
         results.append(result)
