@@ -23,6 +23,8 @@ from collections import defaultdict
 
 from scipy.cluster.hierarchy import linkage, fcluster
 
+import random
+
 
 
 
@@ -156,11 +158,28 @@ dist_calc = FPDistCalc(fp_calc)
 
 atoms_list = read(extxyz_path, index=":")
 n_atoms_list = len(atoms_list)
+iterable = list(range(n_atoms_list))
+random.shuffle(iterable)
 
 results = []
 with Pool(112) as pool:
-    for result in tqdm.tqdm(pool.imap_unordered(func=comp_all, iterable=range(n_atoms_list)), total=n_atoms_list):
+    i = 0
+    for result in tqdm.tqdm(pool.imap_unordered(func=comp_all, iterable=iterable), total=n_atoms_list):
         results.append(result)
+        i += 1
+
+    results = sorted(results, key=lambda x: x[0])
+    # triangle matrix to squared
+    matrix = np.zeros((n_atoms_list, n_atoms_list))
+    for i, ds in results:
+            for (f, d) in enumerate(ds):
+                if f >= i:
+                    continue
+                matrix[i, f] = d
+                matrix[f, i] = d
+    matrix = matrix + matrix.T - np.diag(matrix.diagonal())
+    if i%2000 == 0:
+        np.save(f"matrix_step{i}", matrix)
 
 results = sorted(results, key=lambda x: x[0])
 
