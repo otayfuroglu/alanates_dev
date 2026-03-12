@@ -108,7 +108,7 @@ def comp_all(i):
 
     ds = []
     for (f, r) in refs:
-        if f >= i:
+        if f > i:
             continue
         d = comp(r, s)
         ds.append((d, f))
@@ -149,6 +149,7 @@ extxyz_path = args.extxyz_path
 # refs from extxyz
 
 refs = read(refs_path, index=":")
+n_refs = len(refs)
 refs = [(i, atoms2structure(atoms)) for i, atoms in enumerate(refs)]
 
 fp_calc = lambda s: fomfpall(s.ats, s.elements, lattice=s.lattice, ns=1, npp=1, maxNatSphere=100)
@@ -164,130 +165,23 @@ random.shuffle(iterable)
 
 results = []
 with Pool(args.nproc) as pool:
-    i = 0
     for result in tqdm.tqdm(pool.imap_unordered(func=comp_all, iterable=iterable), total=n_atoms_list):
         results.append(result)
-        i += 1
-
-    results = sorted(results, key=lambda x: x[0])
-    # triangle matrix to squared
-    matrix = np.zeros((n_atoms_list, n_atoms_list))
-    for i, ds in results:
-            for (f, d) in enumerate(ds):
-                if f >= i:
-                    continue
-                matrix[i, f] = d
-                matrix[f, i] = d
-    matrix = matrix + matrix.T - np.diag(matrix.diagonal())
-    if i%2000 == 0:
-        np.save(f"matrix_step{i}", matrix)
 
 results = sorted(results, key=lambda x: x[0])
 
 # triangle matrix to squared
-matrix = np.zeros((n_atoms_list, n_atoms_list))
+matrix = np.zeros((n_atoms_list, n_refs))
 for i, ds in results:
-        for (f, d) in enumerate(ds):
-            if f >= i:
-                continue
-            matrix[i, f] = d
-            matrix[f, i] = d
-matrix = matrix + matrix.T - np.diag(matrix.diagonal())
+    for (f, d) in enumerate(ds):
+        matrix[i, f] = d
 
-
-
-
-#  matrix = np.zeros((n_atoms_list, n_atoms_list))
-#  for i in tqdm.tqdm(range(n_atoms_list)):
-#
-#          atoms = atoms_list[i]
-#          s = atoms2structure(atoms)
-#          ds = []
-#          for (f, r) in refs:
-#              if f >= i:
-#                  continue
-#              d = comp(r, s)
-#              ds.append((d, f))
-#              matrix[i, f] = d
-#              matrix[f, i] = d
-#      #  result = comp_all(i)
-#      #  results.append(result)
-#  #  results = sorted(results, key=lambda x: x[0])
-#  matrix = matrix + matrix.T - np.diag(matrix.diagonal())
-
-
-#  matrix = np.array([fl_ddd[1] for fl_ddd in results])
-#  print(matrix)
-
-np.save("all_matrix", matrix)
-
-fig_name = os.path.basename(args.extxyz_path).split('.')[0] + '_pairwise_dist.png'
-plt.imshow(matrix, aspect='auto')
-plt.xlabel('Frame id')
-plt.ylabel('Frame id')
-plt.colorbar()
-plt.savefig(fig_name)
-#  matrix = np.load("all_matrix.npy")
-
-#  linked = linkage(matrix,'complete')
-#  label_list = range(len(atoms_list))
-#  cluster_conf = defaultdict(list)
-#  thresh = 0.1
-#  for key, idx in zip(fcluster(linked, thresh, criterion='distance'), label_list):
-#      cluster_conf[key].append(idx)
-
-#  print(len(cluster_conf.keys()))
-
-
-#  quit()
-#  v_max = matrix.max()
-#  v_min = matrix.min()
-
-#  idx_sum_fp = np.array( [(i, sum(arr)) for i, arr in results])
-#
-#  mask = idx_sum_fp[:,1] > 18.0
-#  l1 = idx_sum_fp[idx_sum_fp[:,1] > 18.0]
-#  mask1 = idx_sum_fp[idx_sum_fp[:,1] < 18.0]
-#  l2 = mask1[mask1[:, 1] > 11.0]
-#  l3 = idx_sum_fp[idx_sum_fp[:,1] <  11.0]
-#
-#  for i in l2[:, 0]:
-#      atoms = read(args.extxyz_path, index=int(i))
-#      write(f"l2_{os.path.basename(args.extxyz_path).split('.')[0]}.extxyz", atoms, append=True)
-
-
-#  for i, l in enumerate([l1, l2, l3]):
-#      ddd = [fl_ddd[1] for fl_ddd in results if fl_ddd[0] in l]
-#
-#      plt.imshow(np.array(ddd).T, vmin=v_min, vmax=v_max,  aspect='auto')
-#      plt.xlabel('MD Frame id')
-#      plt.ylabel('ref id')
-#
-#      if i == 0:
-#          plt.colorbar()
-#      plt.savefig("%s_%s" %(i, fig_name))
-#
-#  quit()
-#  #
-#  x = idx_sum_fp[:,0]
-#  y = idx_sum_fp[:,1]
-#  plt.scatter(x, y)
-#  plt.xlabel('Frame id')
-#  plt.ylabel('Sum of FP distance')
-#  #  #  for x, y in zip(x,y):
-#  #  #      if y > 15:
-#  #  #          plt.annotate(x, (x, y))
-#  plt.savefig(fig_name)
-#  #
-#  quit()
-#
-
-#  ddd = [fl_ddd[1] for fl_ddd in results]
-
+if n_refs > 1:
+    matrix = matrix + matrix.T - np.diag(matrix.diagonal())
+np.save(f"all_matrix", matrix)
 #  fig_name = os.path.basename(args.extxyz_path).split('.')[0] + '_pairwise_dist.png'
-#  plt.imshow(np.array(ddd).T, aspect='auto')
+#  plt.imshow(matrix, aspect='auto')
 #  plt.xlabel('Frame id')
-#  plt.ylabel('ref id')
+#  plt.ylabel('Frame id')
 #  plt.colorbar()
 #  plt.savefig(fig_name)
-#  plt.show()
